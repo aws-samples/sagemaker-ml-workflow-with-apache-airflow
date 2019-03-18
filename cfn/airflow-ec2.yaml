@@ -232,7 +232,6 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:s3:::${S3BucketName}"
                   - !Sub "arn:aws:s3:::${S3BucketName}/*"
-                  - "arn:aws:s3:::airflow-sagemaker/ml-pipeline/dag.zip"
               - Effect: Allow
                 Action:
                   - iam:GetRole
