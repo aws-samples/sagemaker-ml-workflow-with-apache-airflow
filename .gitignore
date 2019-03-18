@@ -1,0 +1,4 @@
+src/pipeline/__pycache__/*
+*.pyc
+.vscode/
+notebooks/.ipynb_checkpoints/
