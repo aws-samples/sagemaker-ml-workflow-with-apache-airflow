@@ -117,19 +117,19 @@ def prepare(s3_in_bucket,
         s3_train_url = "s3://{}/{}/{}".format(
             s3_in_bucket, s3_in_prefix, 'train/train.csv')
         train_df = pd.read_csv(s3_train_url,
-                               delimiter, error_bad_lines=False)
+                               sep=str(','), error_bad_lines=False)
 
         # prepare validateion dataset
         s3_validate_url = "s3://{}/{}/{}".format(
             s3_in_bucket, s3_in_prefix, 'validate/validate.csv')
         validate_df = pd.read_csv(s3_validate_url,
-                                  delimiter, error_bad_lines=False)
+                                  sep=str(','), error_bad_lines=False)
 
         # prepare test dataset
         s3_test_url = "s3://{}/{}/{}".format(
             s3_in_bucket, s3_in_prefix, 'test/test.csv')
         test_df = pd.read_csv(s3_test_url,
-                              delimiter, error_bad_lines=False)
+                              sep=str(','), error_bad_lines=False)
 
         # get feature dimension
         all_df = pd.concat([train_df, validate_df, test_df])
