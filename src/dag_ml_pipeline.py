@@ -5,9 +5,7 @@ from datetime import datetime
 
 # airflow operators
 import airflow
-from airflow.models import DAG
-from airflow.utils.trigger_rule import TriggerRule
-from airflow.operators.python_operator import BranchPythonOperator
+from airflow.models import DAG, Variable
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 
@@ -18,6 +16,11 @@ from airflow.contrib.operators.sagemaker_tuning_operator \
     import SageMakerTuningOperator
 from airflow.contrib.operators.sagemaker_transform_operator \
     import SageMakerTransformOperator
+from airflow.contrib.operators.sagemaker_model_operator \
+    import SageMakerModelOperator
+from airflow.contrib.operators.sagemaker_endpoint_operator \
+    import SageMakerEndpointOperator
+
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 # sagemaker sdk
@@ -25,15 +28,20 @@ import boto3
 import sagemaker
 from sagemaker.amazon.amazon_estimator import get_image_uri
 from sagemaker.estimator import Estimator
-from sagemaker.tuner import HyperparameterTuner
+from sagemaker.model import Model
+from sagemaker.transformer import Transformer
+from sagemaker.pipeline import PipelineModel
+from sagemaker.sparkml.model import SparkMLModel
 
 # airflow sagemaker configuration
 from sagemaker.workflow.airflow import training_config
-from sagemaker.workflow.airflow import tuning_config
-from sagemaker.workflow.airflow import transform_config_from_estimator
+from sagemaker.workflow.airflow import model_config
+from sagemaker.workflow.airflow import transform_config
+
 
 # ml workflow specific
-from pipeline import prepare, preprocess
+from ml_pipeline import inference_pipeline_ep, sm_proc_job, prepare
+from time import gmtime, strftime
 import config as cfg
 
 # =============================================================================
@@ -41,22 +49,17 @@ import config as cfg
 # =============================================================================
 
 
-def is_hpo_enabled():
-    """check if hyper-parameter optimization is enabled in the config
-    """
-    hpo_enabled = False
-    if "job_level" in config and \
-            "run_hyperparameter_opt" in config["job_level"]:
-        run_hpo_config = config["job_level"]["run_hyperparameter_opt"]
-        if run_hpo_config.lower() == "yes":
-            hpo_enabled = True
-    return hpo_enabled
-
-
 def get_sagemaker_role_arn(role_name, region_name):
     iam = boto3.client('iam', region_name=region_name)
     response = iam.get_role(RoleName=role_name)
     return response["Role"]["Arn"]
+
+
+def create_s3_input(s3_data):
+    data = sagemaker.session.s3_input(
+        s3_data, distribution='FullyReplicated',  content_type='text/csv', s3_data_type='S3Prefix')
+    return data
+
 
 # =============================================================================
 # setting up training, tuning and transform configuration
@@ -73,54 +76,54 @@ sess = hook.get_session(region_name=region)
 role = get_sagemaker_role_arn(
     config["train_model"]["sagemaker_role"],
     sess.region_name)
-container = get_image_uri(sess.region_name, 'factorization-machines')
-hpo_enabled = is_hpo_enabled()
 
-# create estimator
-fm_estimator = Estimator(
-    image_name=container,
+# create XGB estimator
+xgb_container = get_image_uri(
+    sess.region_name, 'xgboost', repo_version="0.90-1")
+
+xgb_estimator = Estimator(
+    image_name=xgb_container,
     role=role,
     sagemaker_session=sagemaker.session.Session(sess),
     **config["train_model"]["estimator_config"]
 )
 
 # train_config specifies SageMaker training configuration
-train_config = training_config(
-    estimator=fm_estimator,
-    inputs=config["train_model"]["inputs"])
 
-# create tuner
-fm_tuner = HyperparameterTuner(
-    estimator=fm_estimator,
-    **config["tune_model"]["tuner_config"]
+train_data = create_s3_input(
+    config['train_model']['inputs']['train'])
+validation_data = create_s3_input(
+    config['train_model']['inputs']['validation'])
+data_channels = {'train': train_data, 'validation': validation_data}
+
+train_config = training_config(
+    estimator=xgb_estimator,
+    inputs=data_channels)
+
+# Batch inference
+
+xgb_transformer = Transformer(
+    model_name=config['batch_transform']['model_name'],
+    sagemaker_session=sagemaker.session.Session(sess),
+    **config['batch_transform']['transformer_config']
 )
 
-# create tuning config
-tuner_config = tuning_config(
-    tuner=fm_tuner,
-    inputs=config["tune_model"]["inputs"])
-
-# create transform config
-transform_config = transform_config_from_estimator(
-    estimator=fm_estimator,
-    task_id="model_tuning" if hpo_enabled else "model_training",
-    task_type="tuning" if hpo_enabled else "training",
-    **config["batch_transform"]["transform_config"]
+transform_config = transform_config(
+    transformer=xgb_transformer,
+    **config['batch_transform']['transform_config']
 )
 
 # =============================================================================
 # define airflow DAG and tasks
 # =============================================================================
-
 # define airflow DAG
-
 args = {
     'owner': 'airflow',
     'start_date': airflow.utils.dates.days_ago(2)
 }
 
 dag = DAG(
-    dag_id='sagemaker-ml-pipeline',
+    'sagemaker-ml-pipeline',
     default_args=args,
     schedule_interval=None,
     concurrency=1,
@@ -128,39 +131,28 @@ dag = DAG(
     user_defined_filters={'tojson': lambda s: json.JSONEncoder().encode(s)}
 )
 
-# set the tasks in the DAG
+# Set the tasks in the DAG
 
-# dummy operator
-init = DummyOperator(
-    task_id='start',
-    dag=dag
-)
-
-# preprocess the data
-preprocess_task = PythonOperator(
-    task_id='preprocessing',
+# Start operator
+init = PythonOperator(
+    task_id='start_job',
     dag=dag,
     provide_context=False,
-    python_callable=preprocess.preprocess,
-    op_kwargs=config["preprocess_data"])
+    python_callable=prepare.start,
+    op_kwargs={'bucket': config['bucket'],
+               'keys': config['keys'], 'file_paths': config['file_paths']})
 
-# prepare the data for training
-prepare_task = PythonOperator(
-    task_id='preparing',
+# SageMaker processing job task
+sm_proc_job_task = PythonOperator(
+    task_id='sm_proc_job',
     dag=dag,
-    provide_context=False,
-    python_callable=prepare.prepare,
-    op_kwargs=config["prepare_data"]
-)
+    provide_context=True,
+    python_callable=sm_proc_job.sm_proc_job,
+    op_kwargs={'role': role, 'sess': sess, 'bucket': config['bucket'], 'spark_repo_uri': config['spark_repo_uri']})
 
-branching = BranchPythonOperator(
-    task_id='branching',
-    dag=dag,
-    python_callable=lambda: "model_tuning" if hpo_enabled else "model_training")
-
-# launch sagemaker training job and wait until it completes
+# Train xgboost model task
 train_model_task = SageMakerTrainingOperator(
-    task_id='model_training',
+    task_id='xgboost_model_training',
     dag=dag,
     config=train_config,
     aws_conn_id='airflow-sagemaker',
@@ -168,38 +160,32 @@ train_model_task = SageMakerTrainingOperator(
     check_interval=30
 )
 
-# launch sagemaker hyperparameter job and wait until it completes
-tune_model_task = SageMakerTuningOperator(
-    task_id='model_tuning',
+# Inference pipeline endpoint task
+inference_pipeline_task = PythonOperator(
+    task_id='inference_pipeline',
     dag=dag,
-    config=tuner_config,
-    aws_conn_id='airflow-sagemaker',
-    wait_for_completion=True,
-    check_interval=30
+    python_callable=inference_pipeline_ep.inference_pipeline_ep,
+    op_kwargs={'role': role, 'sess': sess,
+               'spark_model_uri': config['inference_pipeline']['inputs']['spark_model'], 'bucket': config['bucket']}
 )
 
 # launch sagemaker batch transform job and wait until it completes
 batch_transform_task = SageMakerTransformOperator(
-    task_id='predicting',
+    task_id='batch_predicting',
     dag=dag,
     config=transform_config,
     aws_conn_id='airflow-sagemaker',
     wait_for_completion=True,
-    check_interval=30,
-    trigger_rule=TriggerRule.ONE_SUCCESS
-)
+    check_interval=30)
 
+# Cleanup task
 cleanup_task = DummyOperator(
     task_id='cleaning_up',
     dag=dag)
 
-# set the dependencies between tasks
 
-init.set_downstream(preprocess_task)
-preprocess_task.set_downstream(prepare_task)
-prepare_task.set_downstream(branching)
-branching.set_downstream(tune_model_task)
-branching.set_downstream(train_model_task)
-tune_model_task.set_downstream(batch_transform_task)
-train_model_task.set_downstream(batch_transform_task)
+init.set_downstream(sm_proc_job_task)
+sm_proc_job_task.set_downstream(train_model_task)
+train_model_task.set_downstream(inference_pipeline_task)
+inference_pipeline_task.set_downstream(batch_transform_task)
 batch_transform_task.set_downstream(cleanup_task)

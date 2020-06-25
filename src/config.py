@@ -1,5 +1,11 @@
-from datetime import datetime
-from sagemaker.tuner import ContinuousParameter
+from airflow.models import Variable
+
+try:
+    timestamp = Variable.get("timestamp")
+except:
+    timestamp = ""
+
+bucket = '<s3-bucket>'
 
 config = {}
 
@@ -8,69 +14,61 @@ config["job_level"] = {
     "run_hyperparameter_opt": "no"
 }
 
-config["preprocess_data"] = {
-    "s3_in_url": "s3://amazon-reviews-pds/tsv/amazon_reviews_us_Digital_Video_Download_v1_00.tsv.gz",
-    "s3_out_bucket": "<s3-bucket>",  # replace
-    "s3_out_prefix": "preprocess/",
-    "delimiter": "\t"
-}
+# Hard coded
+config["spark_repo_uri"] = "154727479023.dkr.ecr.us-east-1.amazonaws.com/sagemaker-spark-example"
 
-config["prepare_data"] = {
-    "s3_in_bucket": "<s3-bucket>",  # replace
-    "s3_in_prefix": "preprocess/",
-    "s3_out_bucket": "<s3-bucket>",  # replace
-    "s3_out_prefix": "prepare/",
-    "delimiter": "\t"
-}
+config["bucket"] = bucket
+
+config["keys"] = ['sagemaker/spark-preprocess/inputs/raw/abalone/abalone.csv',
+                  'code/smprocpreprocess.py']
+
+config["file_paths"] = ['/root/sagemaker-ml-pipeline/src/ml_pipeline/abalone.csv',
+                        '/root/sagemaker-ml-pipeline/src/ml_pipeline/smprocpreprocess.py']
 
 config["train_model"] = {
     "sagemaker_role": "AirflowSageMakerExecutionRole",
     "estimator_config": {
         "train_instance_count": 1,
-        "train_instance_type": "ml.c5.4xlarge",
-        "train_volume_size": 30,
+        "train_instance_type": "ml.m4.xlarge",
+        "train_volume_size": 20,
         "train_max_run": 3600,
-        "output_path": "s3://<s3-bucket>/train/",  # replace
-        "base_job_name": "trng-recommender",
+        "output_path": "s3://"+bucket+"/sagemaker/spark-preprocess/model/xgboost",
+        "base_job_name": "training-job-",
         "hyperparameters": {
-            "feature_dim": "178729",
-            "epochs": "10",
-            "mini_batch_size": "200",
-            "num_factors": "64",
-            "predictor_type": 'regressor'
+            "objective": "reg:linear",
+            "eta": ".2",
+            "max_depth": "5",
+            "num_round": "10",
+            "subsample": "0.7",
+            "silent": "0",
+            "min_child_weight": "6"
         }
     },
     "inputs": {
-        "train": "s3://<s3-bucket>/prepare/train/train.protobuf",  # replace
+        "train": "s3://"+bucket+"/sagemaker/spark-preprocess/inputs/preprocessed/abalone/"+timestamp+"/train/part-00000",
+        "validation": "s3://"+bucket+"/sagemaker/spark-preprocess/inputs/preprocessed/abalone/"+timestamp+"/validation/part-00000"  # replace
     }
 }
 
-config["tune_model"] = {
-    "tuner_config": {
-        "objective_metric_name": "test:rmse",
-        "objective_type": "Minimize",
-        "hyperparameter_ranges": {
-            "factors_lr": ContinuousParameter(0.0001, 0.2),
-            "factors_init_sigma": ContinuousParameter(0.0001, 1)
-        },
-        "max_jobs": 20,
-        "max_parallel_jobs": 2,
-        "base_tuning_job_name": "hpo-recommender"
-    },
+config["inference_pipeline"] = {
     "inputs": {
-        "train": "s3://<s3-bucket>/prepare/train/train.protobuf",  # replace
-        "test": "s3://<s3-bucket>/prepare/validate/validate.protobuf"  # replace
+        "spark_model": "s3://"+bucket+"/sagemaker/spark-preprocess/model/spark/"+timestamp+"/model.tar.gz"
     }
 }
 
 config["batch_transform"] = {
-    "transform_config": {
+    "transformer_config": {
         "instance_count": 1,
         "instance_type": "ml.c4.xlarge",
-        "data": "s3://<s3-bucket>/prepare/test/",
+        "output_path": "s3://" + bucket + "/sagemaker/spark-preprocess/batch_output/xgb-transform/" + timestamp
+    },
+    "transform_config": {
+        "data": "s3://"+bucket+"/sagemaker/spark-preprocess/inputs/raw/abalone/abalone.csv",
         "data_type": "S3Prefix",
-        "content_type": "application/x-recordio-protobuf",
-        "strategy": "MultiRecord",
-        "output_path": "s3://<s3-bucket>/transform/"
-    }
+        "content_type": "text/csv",
+        "split_type": "Line",
+        "input_filter": "$[:-1]",
+        "job_name": "xgb-transform-job-"+timestamp
+    },
+    "model_name": "inference-pipeline-spark-xgboost-"+timestamp
 }
