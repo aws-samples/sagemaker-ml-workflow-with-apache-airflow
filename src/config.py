@@ -47,6 +47,7 @@ config["train_model"] = {
     "inputs": {
         "train": "s3://"+bucket+"/sagemaker/spark-preprocess/inputs/preprocessed/abalone/"+timestamp+"/train/part-00000",
         "validation": "s3://"+bucket+"/sagemaker/spark-preprocess/inputs/preprocessed/abalone/"+timestamp+"/validation/part-00000"  
+    }
 }
 
 config["inference_pipeline"] = {
