@@ -54,9 +54,6 @@ COPY program /opt/program
 RUN chmod +x /opt/program/submit
 COPY hadoop-config /opt/hadoop-config
 
-COPY mleap_spark_assembly.jar $SPARK_HOME/
-ENV SPARK_DIST_CLASSPATH="$HADOOP_HOME/etc/hadoop/*:$HADOOP_HOME/share/hadoop/common/lib/*:$HADOOP_HOME/share/hadoop/common/*:$HADOOP_HOME/share/hadoop/hdfs/*:$HADOOP_HOME/share/hadoop/hdfs/lib/*:$HADOOP_HOME/share/hadoop/hdfs/*:$HADOOP_HOME/share/hadoop/yarn/lib/*:$HADOOP_HOME/share/hadoop/yarn/*:$HADOOP_HOME/share/hadoop/mapreduce/lib/*:$HADOOP_HOME/share/hadoop/mapreduce/*:$HADOOP_HOME/share/hadoop/tools/lib/*:$SPARK_HOME/*"
-
 WORKDIR $SPARK_HOME
 
 ENTRYPOINT ["/opt/program/submit"]
