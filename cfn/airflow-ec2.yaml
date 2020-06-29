@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
-Description: Airflow server backed by Postgres RDS
+Description: Airflow server backed by Postgres RDS and Spark
 
 Parameters:
   KeyName:
@@ -86,7 +86,7 @@ Resources:
           /opt/aws/bin/cfn-init -v -c install --stack ${AWS::StackId} --resource EC2Instance --region ${AWS::Region}
           # Install git
           echo "Installing git"
-          sudo yum install -y git
+          sudo yum install -y git docker jq
           # Install boto3
           echo "Updating boto3"
           python -m pip install boto3 --upgrade --user
@@ -118,7 +118,7 @@ Resources:
           echo "Installing s3fs"
           python -m pip install --upgrade s3fs --user
           echo "Installing sagemaker sdk"
-          python -m pip install sagemaker==v1.39.2 --user
+          python -m pip install sagemaker --user
           # Initialize Airflow
           airflow initdb
           # Update the RDS connection in the Airflow Config file
@@ -127,6 +127,10 @@ Resources:
           # Update the type of executor in the Airflow Config file
           sed -i '/executor = SequentialExecutor/s/^/#/g' ~/airflow/airflow.cfg
           sed -i '/executor = SequentialExecutor/ a executor = LocalExecutor' ~/airflow/airflow.cfg
+          sed -i 's/load_examples = True/load_examples = False/g' ~/airflow/airflow.cfg
+          sed -i 's$endpoint_url = http://localhost:8080$endpoint_url = http://localhost:80$g' ~/airflow/airflow.cfg
+          sed -i 's$base_url = http://localhost:8080$base_url = http://localhost:80$g' ~/airflow/airflow.cfg
+          sed -i 's$web_server_port = 8080$web_server_port = 80$g' ~/airflow/airflow.cfg
           airflow initdb
           # create airflow connection to sagemaker
           cat >> /tmp/airflow_conn.py << EOF
@@ -143,18 +147,33 @@ Resources:
           EOF
           python /tmp/airflow_conn.py
           # create directories
-          mkdir -p ~/airflow/dags/sm-ml-pipeline
+          mkdir -p ~/airflow/dags/sagemaker-ml-pipeline
           # clone the git repository
           cd ~
-          git clone https://github.com/aws-samples/sagemaker-ml-workflow-with-apache-airflow.git
-          mv ~/sagemaker-ml-workflow-with-apache-airflow ~/sm-ml-pipeline
-          cd ~/sm-ml-pipeline/src
+          git clone -b sm-processing https://github.com/aws-samples/sagemaker-ml-workflow-with-apache-airflow.git
+          mv ~/sagemaker-ml-workflow-with-apache-airflow ~/sagemaker-ml-pipeline
+          cd ~/sagemaker-ml-pipeline/src
           # prepare airflow dag definition for sagemaker blog post
           sed -i 's/<s3-bucket>/${S3BucketName}/g' ./*.*
           sed -i 's/<region-name>/${AWS::Region}/g' ./*.*
+          sed -i 's/<accountid>/${AWS::AccountId}/g' ~/sagemaker-ml-pipeline/src/config.py
           zip -r dag.zip *
-          cp dag.zip ~/airflow/dags/sm-ml-pipeline/dag.zip
+          cp dag.zip ~/airflow/dags/sagemaker-ml-pipeline/dag.zip
           cd -
+          /etc/init.d/docker start
+          export ecr_repository=sagemaker-spark-example
+          export tag=:latest
+          export uri_suffix=amazonaws.com
+          export region=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
+          export account_id=$(aws sts get-caller-identity --output text --query Account)
+          export spark_repository_uri=$account_id.dkr.ecr.$region.$uri_suffix/$ecr_repository$tag
+          cd ~/sagemaker-ml-pipeline/container
+          docker build -t sagemaker-spark-example .
+          # Create ECR repository and push docker image
+          $(aws ecr get-login --region $region --registry-ids $account_id --no-include-email)
+          aws ecr create-repository --repository-name $ecr_repository --region $region
+          docker tag $ecr_repository$tag $spark_repository_uri
+          docker push $spark_repository_uri
           # Run Airflow webserver and scheduler
           airflow list_dags
           airflow webserver -D
@@ -266,6 +285,7 @@ Resources:
               - "sts:AssumeRole"
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
       Path: "/service-role/"
       Policies:
         - PolicyName: SageMakerS3BucketAccess
@@ -281,4 +301,4 @@ Resources:
 Outputs:
   AirflowEC2PublicDNSName:
     Description: Public DNS Name of the Airflow EC2 instance
-    Value: !Join ["", ["http://", !GetAtt EC2Instance.PublicDnsName, ":8080"]]
+    Value: !Join ["", ["http://", !GetAtt EC2Instance.PublicDnsName, "/admin"]]
