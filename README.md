@@ -14,7 +14,6 @@ The repository contains
 - [Airflow DAG Python Script](./src/dag_ml_pipeline_amazon_video_reviews.py) that integrates and orchestrates all the ML tasks in a ML workflow for building a recommender system.
 - A companion [Jupyter Notebook](./notebooks/amazon-video-recommender_using_fm_algo.ipynb) to understand the individual ML tasks in detail such as data exploration, data preparation, model training/tuning and inference.
 
-
 ```text
 .
 ├── README.md                                         About the repository
@@ -24,8 +23,8 @@ The repository contains
 │   └── amazon-video-recommender_using_fm_algo.ipynb
 └── src                                               Source code for Airflow DAG definition
     ├── config.py                                     Config file to configure SageMaker jobs and other ML tasks
-    ├── dag_ml_pipeline_amazon_video_reviews.py       Airflow DAG definition for ML workflow
-    └── pipeline                                      Python module used in Airflow DAG for data preparation
+    ├── dag_ml_pipeline.py                            Airflow DAG definition for ML workflow
+    └── ml_pipeline                                   Python module used in Airflow DAG for data preparation
         ├── __init__.py
         ├── prepare.py                                Data preparation script
         └── preprocess.py                             Data pre-processing script
@@ -65,7 +64,7 @@ It may take up to 10 minutes for the CloudFormation stack to create the resource
 Airflow DAG integrates all the ML tasks in a ML workflow. Airflow DAG is a python script where you express individual tasks as Airflow operators, set task dependencies and associate the tasks to the DAG to run either on demand or scheduled interval. The Airflow DAG script is divided into following sections
 
 1. Set DAG with parameters such as schedule_interval to run the workflow at scheduled time
-2. Set up training, tuning and inference configurations for each operators using Sagemaker Python SDK for Airflow operators. 
+2. Set up training, tuning and inference configurations for each operators using Sagemaker Python SDK for Airflow operators.
 3. Create individual tasks as Airflow operators defining trigger rules and associating them with the DAG object. Refer previous section for defining the individual tasks
 4. Specify task dependencies
 
@@ -77,7 +76,7 @@ You can find the Airflow DAG code [here](./src/dag_ml_pipeline_amazon_video_revi
 
 The final step is to clean up. To avoid unnecessary charges,
 
-1. You should destroy all of the resources created by the CloudFormation stack in Airflow set up by deleting the stack after you’re done experimenting with it. You can follow the steps here to [delete the stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-delete-stack.html). 
+1. You should destroy all of the resources created by the CloudFormation stack in Airflow set up by deleting the stack after you’re done experimenting with it. You can follow the steps here to [delete the stack](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-console-delete-stack.html).
 2. You have to manually [delete the S3 bucket](https://docs.aws.amazon.com/AmazonS3/latest/user-guide/delete-bucket.html) created because AWS CloudFormation cannot delete non-empty S3 bucket.
 
 ## References
