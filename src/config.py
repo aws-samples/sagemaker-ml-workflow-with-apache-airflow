@@ -15,7 +15,7 @@ config["job_level"] = {
 }
 
 # Hard coded
-config["spark_repo_uri"] = "<accountid>.dkr.ecr.us-east-1.amazonaws.com/sagemaker-spark-example"
+config["spark_repo_uri"] = "<accountid>.dkr.ecr.<region-name>.amazonaws.com/sagemaker-spark-example"
 
 config["bucket"] = bucket
 
