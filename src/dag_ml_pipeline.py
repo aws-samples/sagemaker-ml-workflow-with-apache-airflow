@@ -12,14 +12,12 @@ from airflow.operators.python_operator import PythonOperator
 # airflow sagemaker operators
 from airflow.contrib.operators.sagemaker_training_operator \
     import SageMakerTrainingOperator
-from airflow.contrib.operators.sagemaker_tuning_operator \
-    import SageMakerTuningOperator
 from airflow.contrib.operators.sagemaker_transform_operator \
     import SageMakerTransformOperator
 from airflow.contrib.operators.sagemaker_model_operator \
     import SageMakerModelOperator
-from airflow.contrib.operators.sagemaker_endpoint_operator \
-    import SageMakerEndpointOperator
+#from airflow.contrib.operators.sagemaker_endpoint_operator \
+#    import SageMakerEndpointOperator #don't use it now; may use it later when SM support Pipeline model
 
 from airflow.contrib.hooks.aws_hook import AwsHook
 
@@ -89,7 +87,6 @@ xgb_estimator = Estimator(
 )
 
 # train_config specifies SageMaker training configuration
-
 train_data = create_s3_input(
     config['train_model']['inputs']['train'])
 validation_data = create_s3_input(
@@ -101,7 +98,6 @@ train_config = training_config(
     inputs=data_channels)
 
 # Batch inference
-
 xgb_transformer = Transformer(
     model_name=config['batch_transform']['model_name'],
     sagemaker_session=sagemaker.session.Session(sess),
@@ -166,7 +162,8 @@ inference_pipeline_task = PythonOperator(
     dag=dag,
     python_callable=inference_pipeline_ep.inference_pipeline_ep,
     op_kwargs={'role': role, 'sess': sess,
-               'spark_model_uri': config['inference_pipeline']['inputs']['spark_model'], 'region': region, 'bucket': config['bucket']}
+               'spark_model_uri': config['inference_pipeline']['inputs']['spark_model'], 
+               'region': region, 'bucket': config['bucket']}
 )
 
 # launch sagemaker batch transform job and wait until it completes

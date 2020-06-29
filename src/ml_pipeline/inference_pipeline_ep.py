@@ -15,7 +15,8 @@ def inference_pipeline_ep(role, sess, spark_model_uri, region, bucket, **context
     sm = boto3.client('sagemaker', region_name=region)
     s3_sparkml_data_uri = spark_model_uri
     s3_xgboost_model = sm.list_training_jobs(MaxResults=1, StatusEquals='Completed', SortBy='CreationTime',
-                                             NameContains='training-job-', SortOrder='Descending')['TrainingJobSummaries'][0]['TrainingJobName']
+                                             NameContains='training-job-', 
+                                             SortOrder='Descending')['TrainingJobSummaries'][0]['TrainingJobName']
 
     s3_xgboost_model_uri = 's3://'+bucket+'/sagemaker/spark-preprocess/model/xgboost/' + \
         s3_xgboost_model+'/output/model.tar.gz'
@@ -25,8 +26,9 @@ def inference_pipeline_ep(role, sess, spark_model_uri, region, bucket, **context
 
     schema_json = schema_utils.abalone_schema()
 
-    sparkml_model = SparkMLModel(model_data=s3_sparkml_data_uri,  role=role, sagemaker_session=sagemaker.session.Session(
-        sess), env={'SAGEMAKER_SPARKML_SCHEMA': schema_json})
+    sparkml_model = SparkMLModel(model_data=s3_sparkml_data_uri,  role=role, 
+        sagemaker_session=sagemaker.session.Session(sess), 
+        env={'SAGEMAKER_SPARKML_SCHEMA': schema_json})
 
     xgb_model = Model(model_data=s3_xgboost_model_uri, role=role,
                       sagemaker_session=sagemaker.session.Session(sess), image=xgb_container)

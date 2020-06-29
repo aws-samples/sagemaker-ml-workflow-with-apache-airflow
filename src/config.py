@@ -46,8 +46,7 @@ config["train_model"] = {
     },
     "inputs": {
         "train": "s3://"+bucket+"/sagemaker/spark-preprocess/inputs/preprocessed/abalone/"+timestamp+"/train/part-00000",
-        "validation": "s3://"+bucket+"/sagemaker/spark-preprocess/inputs/preprocessed/abalone/"+timestamp+"/validation/part-00000"  # replace
-    }
+        "validation": "s3://"+bucket+"/sagemaker/spark-preprocess/inputs/preprocessed/abalone/"+timestamp+"/validation/part-00000"  
 }
 
 config["inference_pipeline"] = {
@@ -63,11 +62,11 @@ config["batch_transform"] = {
         "output_path": "s3://" + bucket + "/sagemaker/spark-preprocess/batch_output/xgb-transform/" + timestamp
     },
     "transform_config": {
-        "data": "s3://"+bucket+"/sagemaker/spark-preprocess/inputs/raw/abalone/abalone.csv",
+        "data": "s3://"+bucket+"/sagemaker/spark-preprocess/inputs/raw/abalone/abalone.csv", #for simplicity, we use training dataset
         "data_type": "S3Prefix",
         "content_type": "text/csv",
         "split_type": "Line",
-        "input_filter": "$[:-1]",
+        "input_filter": "$[:-1]", #we are removing the 1st column of the data (label) for inference purposes.
         "job_name": "xgb-transform-job-"+timestamp
     },
     "model_name": "inference-pipeline-spark-xgboost-"+timestamp
