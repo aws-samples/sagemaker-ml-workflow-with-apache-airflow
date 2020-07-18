@@ -13,13 +13,15 @@ from airflow.models import Variable
 def inference_pipeline_ep(role, sess, spark_model_uri, region, bucket, **context):
     timestamp_prefix = Variable.get("timestamp")
     sm = boto3.client('sagemaker', region_name=region)
-    s3_sparkml_data_uri = spark_model_uri
-    s3_xgboost_model = sm.list_training_jobs(MaxResults=1, StatusEquals='Completed', SortBy='CreationTime',
-                                             NameContains='training-job-', 
-                                             SortOrder='Descending')['TrainingJobSummaries'][0]['TrainingJobName']
+    s3client = boto3.client('s3', region_name=region)
 
-    s3_xgboost_model_uri = 's3://'+bucket+'/sagemaker/spark-preprocess/model/xgboost/' + \
-        s3_xgboost_model+'/output/model.tar.gz'
+    s3_sparkml_data_uri = spark_model_uri
+    
+    s3_xgb_objects = s3client.list_objects_v2(Bucket=bucket, StartAfter='sagemaker/spark-preprocess/model/xgboost/')
+    obj_list = s3_xgb_objects['Contents']
+    obj_list.sort(key = lambda x:x['LastModified'], reverse=False)
+    xgboost_model_latest = obj_list[-1]['Key']   
+    s3_xgboost_model_uri = 's3://' + bucket + '/' + xgboost_model_latest
 
     xgb_container = get_image_uri(
         sess.region_name, 'xgboost', repo_version='0.90-1')
