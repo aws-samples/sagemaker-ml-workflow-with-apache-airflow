@@ -16,7 +16,7 @@ from airflow.contrib.operators.sagemaker_transform_operator \
     import SageMakerTransformOperator
 from airflow.contrib.operators.sagemaker_model_operator \
     import SageMakerModelOperator
-#from airflow.contrib.operators.sagemaker_endpoint_operator \
+# from airflow.contrib.operators.sagemaker_endpoint_operator \
 #    import SageMakerEndpointOperator #don't use it now; may use it later when SM support Pipeline model
 
 from airflow.contrib.hooks.aws_hook import AwsHook
@@ -162,8 +162,8 @@ inference_pipeline_task = PythonOperator(
     dag=dag,
     python_callable=inference_pipeline_ep.inference_pipeline_ep,
     op_kwargs={'role': role, 'sess': sess,
-               'spark_model_uri': config['inference_pipeline']['inputs']['spark_model'], 
-               'region': region, 'bucket': config['bucket']}
+               'spark_model_uri': config['inference_pipeline']['inputs']['spark_model'],
+               'region': region}
 )
 
 # launch sagemaker batch transform job and wait until it completes
