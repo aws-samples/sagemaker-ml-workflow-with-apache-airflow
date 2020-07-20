@@ -10,7 +10,7 @@ from sagemaker.amazon.amazon_estimator import get_image_uri
 from airflow.models import Variable
 
 
-def inference_pipeline_ep(role, sess, spark_model_uri, region, **context):
+def inference_pipeline_ep(role, sess, spark_model_uri, region, bucket, **context):
     timestamp_prefix = Variable.get("timestamp")
     # sm = boto3.client('sagemaker', region_name=region)
     s3client = boto3.client('s3', region_name=region)
