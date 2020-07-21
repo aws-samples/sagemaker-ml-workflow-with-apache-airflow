@@ -161,6 +161,7 @@ Resources:
           sed -i 's/<s3-bucket>/${S3BucketName}/g' ./*.*
           sed -i 's/<region-name>/${AWS::Region}/g' ./*.*
           sed -i 's/<accountid>/${AWS::AccountId}/g' ~/sagemaker-ml-pipeline/src/config.py
+          sed -i 's/AirflowSageMakerExecutionRole/AirflowSageMakerExecutionRole-${AWS::StackName}/g' ~/sagemaker-ml-pipeline/src/config.py
           zip -r dag.zip *
           cp dag.zip ~/airflow/dags/sagemaker-ml-pipeline/dag.zip
           cd -
@@ -209,7 +210,7 @@ Resources:
   AirflowEC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: AirflowEC2SG
+      GroupName: !Sub 'AirflowEC2SG-${AWS::StackName}'  
       GroupDescription: Enable HTTP access via port 80 + SSH access
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -234,7 +235,7 @@ Resources:
   EC2Role:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: AirflowInstanceRole
+      RoleName: !Sub 'AirflowInstanceRole-${AWS::StackName}'  
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -248,7 +249,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
       Policies:
-        - PolicyName: AirflowResourceAccess
+        - PolicyName: !Sub 'AirflowResourceAccess-${AWS::StackName}'  
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -265,7 +266,7 @@ Resources:
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
-      InstanceProfileName: AirflowInstanceProfile
+      InstanceProfileName: !Sub 'AirflowInstanceProfile-${AWS::StackName}' 
       Roles:
         - Ref: EC2Role
   S3Bucket:
@@ -277,7 +278,7 @@ Resources:
   AirflowSageMakerExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: AirflowSageMakerExecutionRole
+      RoleName: !Sub 'AirflowSageMakerExecutionRole-${AWS::StackName}' 
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -292,7 +293,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
       Path: "/service-role/"
       Policies:
-        - PolicyName: SageMakerS3BucketAccess
+        - PolicyName: !Sub 'SageMakerS3BucketAccess-${AWS::StackName}' 
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
