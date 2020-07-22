@@ -172,6 +172,7 @@ Resources:
           export region=$(curl -s 169.254.169.254/latest/dynamic/instance-identity/document | jq -r '.region')
           export account_id=$(aws sts get-caller-identity --output text --query Account)
           export spark_repository_uri=$account_id.dkr.ecr.$region.$uri_suffix/$ecr_repository$tag
+          export AWS_REGION=${AWS::Region}
           cd ~/sagemaker-ml-pipeline/container
           docker build -t sagemaker-spark-example .
           # Create ECR repository and push docker image
