@@ -38,7 +38,7 @@ from sagemaker.workflow.airflow import transform_config
 
 
 # ml workflow specific
-from ml_pipeline import inference_pipeline_ep, sm_proc_job, prepare
+from ml_pipeline import inference_pipeline_ep, sm_proc_job, prepare, clean_up
 from time import gmtime, strftime
 import config as cfg
 
@@ -70,6 +70,7 @@ config = cfg.config
 # set configuration for tasks
 hook = AwsHook(aws_conn_id='airflow-sagemaker')
 region = config["job_level"]["region_name"]
+bucket = config["bucket"]
 sess = hook.get_session(region_name=region)
 role = get_sagemaker_role_arn(
     config["train_model"]["sagemaker_role"],
@@ -135,7 +136,7 @@ init = PythonOperator(
     dag=dag,
     provide_context=False,
     python_callable=prepare.start,
-    op_kwargs={'bucket': config['bucket'],
+    op_kwargs={'bucket': bucket,
                'keys': config['keys'], 'file_paths': config['file_paths']})
 
 # SageMaker processing job task
@@ -144,7 +145,7 @@ sm_proc_job_task = PythonOperator(
     dag=dag,
     provide_context=True,
     python_callable=sm_proc_job.sm_proc_job,
-    op_kwargs={'role': role, 'sess': sess, 'bucket': config['bucket'], 'spark_repo_uri': config['spark_repo_uri']})
+    op_kwargs={'role': role, 'sess': sess, 'bucket': bucket, 'spark_repo_uri': config['spark_repo_uri']})
 
 # Train xgboost model task
 train_model_task = SageMakerTrainingOperator(
@@ -163,7 +164,7 @@ inference_pipeline_task = PythonOperator(
     python_callable=inference_pipeline_ep.inference_pipeline_ep,
     op_kwargs={'role': role, 'sess': sess,
                'spark_model_uri': config['inference_pipeline']['inputs']['spark_model'],
-               'region': region, 'bucket': config['bucket']}
+               'region': region, 'bucket': bucket}
 )
 
 # launch sagemaker batch transform job and wait until it completes
@@ -175,14 +176,18 @@ batch_transform_task = SageMakerTransformOperator(
     wait_for_completion=True,
     check_interval=30)
 
-# Cleanup task
-cleanup_task = DummyOperator(
-    task_id='cleaning_up',
-    dag=dag)
-
+# Cleanup task, deletes ALL SageMaker endpoints and model artifacts
+# Uncomment below clean_up_task to clean up sagemaker endpoint resources and model artifacts
+# clean_up_task = PythonOperator(
+#    task_id='clean_up',
+#    dag=dag,
+#    python_callable=clean_up.clean_up,
+#    op_kwargs={'region': region, "bucket": bucket}
+# )
 
 init.set_downstream(sm_proc_job_task)
 sm_proc_job_task.set_downstream(train_model_task)
 train_model_task.set_downstream(inference_pipeline_task)
 inference_pipeline_task.set_downstream(batch_transform_task)
-batch_transform_task.set_downstream(cleanup_task)
+# Uncomment line below to disable clean up task
+# batch_transform_task.set_downstream(clean_up_task)
