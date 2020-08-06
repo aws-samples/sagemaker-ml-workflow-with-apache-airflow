@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: '2010-09-09'
 
 Description: Airflow server backed by Postgres RDS and Spark
 
@@ -10,59 +10,59 @@ Parameters:
   S3BucketName:
     Description: REQUIRED - A new S3 Bucket name. This bucket will be used by Sagemaker for reading and writing model artifacts or hosting data
     Type: String
-    AllowedPattern: ".+"
+    AllowedPattern: '.+'
   DBPassword:
-    NoEcho: "true"
+    NoEcho: 'true'
     Description: Airflow database admin account password
     Type: String
-    MinLength: "8"
-    MaxLength: "41"
-    AllowedPattern: "[a-zA-Z0-9]*"
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
     ConstraintDescription: Must contain only alphanumeric characters
 
 # Mapping to find the Amazon Linux AMI in each region.
 Mappings:
   RegionMap:
     ap-northeast-1:
-      AMI: "ami-06cd52961ce9f0d85"
+      AMI: 'ami-06cd52961ce9f0d85'
     ap-northeast-2:
-      AMI: "ami-0a10b2721688ce9d2"
+      AMI: 'ami-0a10b2721688ce9d2'
     ap-northeast-3:
-      AMI: "ami-0d98120a9fb693f07"
+      AMI: 'ami-0d98120a9fb693f07'
     ap-south-1:
-      AMI: "ami-0912f71e06545ad88"
+      AMI: 'ami-0912f71e06545ad88'
     ap-southeast-1:
-      AMI: "ami-08569b978cc4dfa10"
+      AMI: 'ami-08569b978cc4dfa10'
     ap-southeast-2:
-      AMI: "ami-09b42976632b27e9b"
+      AMI: 'ami-09b42976632b27e9b'
     ca-central-1:
-      AMI: "ami-0b18956f"
+      AMI: 'ami-0b18956f'
     eu-central-1:
-      AMI: "ami-0233214e13e500f77"
+      AMI: 'ami-0233214e13e500f77'
     eu-west-1:
-      AMI: "ami-047bb4163c506cd98"
+      AMI: 'ami-047bb4163c506cd98'
     eu-west-2:
-      AMI: "ami-f976839e"
+      AMI: 'ami-f976839e'
     eu-west-3:
-      AMI: "ami-0ebc281c20e89ba4b"
+      AMI: 'ami-0ebc281c20e89ba4b'
     sa-east-1:
-      AMI: "ami-07b14488da8ea02a0"
+      AMI: 'ami-07b14488da8ea02a0'
     us-east-1:
-      AMI: "ami-0ff8a91507f77f867"
+      AMI: 'ami-0ff8a91507f77f867'
     us-east-2:
-      AMI: "ami-0b59bfac6be064b78"
+      AMI: 'ami-0b59bfac6be064b78'
     us-west-1:
-      AMI: "ami-0bdb828fd58c52235"
+      AMI: 'ami-0bdb828fd58c52235'
     us-west-2:
-      AMI: "ami-a0cfeed8"
+      AMI: 'ami-a0cfeed8'
 
 Resources:
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      KeyName: !Ref "KeyName"
-      SecurityGroups: [!Ref "AirflowEC2SecurityGroup"]
-      InstanceType: "m4.xlarge"
+      KeyName: !Ref 'KeyName'
+      SecurityGroups: [!Ref 'AirflowEC2SecurityGroup']
+      InstanceType: 'm4.xlarge'
       IamInstanceProfile:
         Ref: EC2InstanceProfile
       Tags:
@@ -70,7 +70,7 @@ Resources:
           Value: Airflow
       ImageId: !FindInMap
         - RegionMap
-        - !Ref "AWS::Region"
+        - !Ref 'AWS::Region'
         - AMI
       UserData:
         Fn::Base64: !Sub |
@@ -122,7 +122,7 @@ Resources:
           echo "Installing s3fs"
           python3 -m pip install --upgrade s3fs --user
           echo "Installing sagemaker sdk"
-          python3 -m pip install sagemaker --user
+          python3 -m pip install sagemaker==1.72.0 --user
           # Initialize Airflow
           airflow initdb
           # Update the RDS connection in the Airflow Config file
@@ -203,7 +203,7 @@ Resources:
       DBName: airflowdb
       Engine: postgres
       MasterUsername: airflow
-      MasterUserPassword: !Ref "DBPassword"
+      MasterUserPassword: !Ref 'DBPassword'
       DBInstanceClass: db.t2.small
       AllocatedStorage: 5
       DBSecurityGroups:
@@ -211,7 +211,7 @@ Resources:
   AirflowEC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: !Sub 'AirflowEC2SG-${AWS::StackName}'  
+      GroupName: !Sub 'AirflowEC2SG-${AWS::StackName}'
       GroupDescription: Enable HTTP access via port 80 + SSH access
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -236,38 +236,38 @@ Resources:
   EC2Role:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'AirflowInstanceRole-${AWS::StackName}'  
+      RoleName: !Sub 'AirflowInstanceRole-${AWS::StackName}'
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
-          - Effect: "Allow"
+          - Effect: 'Allow'
             Principal:
               Service:
-                - "ec2.amazonaws.com"
+                - 'ec2.amazonaws.com'
             Action:
-              - "sts:AssumeRole"
-      Path: "/"
+              - 'sts:AssumeRole'
+      Path: '/'
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
       Policies:
-        - PolicyName: !Sub 'AirflowResourceAccess-${AWS::StackName}'  
+        - PolicyName: !Sub 'AirflowResourceAccess-${AWS::StackName}'
           PolicyDocument:
-            Version: "2012-10-17"
+            Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
                   - s3:*
                 Resource:
-                  - !Sub "arn:aws:s3:::${S3BucketName}"
-                  - !Sub "arn:aws:s3:::${S3BucketName}/*"
+                  - !Sub 'arn:aws:s3:::${S3BucketName}'
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/*'
               - Effect: Allow
                 Action:
                   - iam:GetRole
-                Resource: "*"
+                Resource: '*'
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
-      InstanceProfileName: !Sub 'AirflowInstanceProfile-${AWS::StackName}' 
+      InstanceProfileName: !Sub 'AirflowInstanceProfile-${AWS::StackName}'
       Roles:
         - Ref: EC2Role
   S3Bucket:
@@ -275,36 +275,36 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       AccessControl: BucketOwnerFullControl
-      BucketName: !Ref "S3BucketName"
+      BucketName: !Ref 'S3BucketName'
   AirflowSageMakerExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'AirflowSageMakerExecutionRole-${AWS::StackName}' 
+      RoleName: !Sub 'AirflowSageMakerExecutionRole-${AWS::StackName}'
       AssumeRolePolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
-          - Effect: "Allow"
+          - Effect: 'Allow'
             Principal:
               Service:
-                - "sagemaker.amazonaws.com"
+                - 'sagemaker.amazonaws.com'
             Action:
-              - "sts:AssumeRole"
+              - 'sts:AssumeRole'
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
-      Path: "/service-role/"
+      Path: '/service-role/'
       Policies:
-        - PolicyName: !Sub 'SageMakerS3BucketAccess-${AWS::StackName}' 
+        - PolicyName: !Sub 'SageMakerS3BucketAccess-${AWS::StackName}'
           PolicyDocument:
-            Version: "2012-10-17"
+            Version: '2012-10-17'
             Statement:
               - Effect: Allow
                 Action:
                   - s3:*
                 Resource:
-                  - !Sub "arn:aws:s3:::${S3BucketName}"
-                  - !Sub "arn:aws:s3:::${S3BucketName}/*"
+                  - !Sub 'arn:aws:s3:::${S3BucketName}'
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/*'
 Outputs:
   AirflowEC2PublicDNSName:
     Description: Public DNS Name of the Airflow EC2 instance
-    Value: !Join ["", ["http://", !GetAtt EC2Instance.PublicDnsName, "/admin"]]
+    Value: !Join ['', ['http://', !GetAtt EC2Instance.PublicDnsName, '/admin']]
