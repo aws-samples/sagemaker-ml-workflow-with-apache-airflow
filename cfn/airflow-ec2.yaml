@@ -99,7 +99,7 @@ Resources:
           # Install airflow using pip
           echo "Installing Apache Airflow"
           export AIRFLOW_GPL_UNIDECODE=yes
-          python -m pip install apache-airflow --user
+          python -m pip install apache-airflow==1.10.10 --user
           # Encrypt connection passwords in metadata db
           python -m pip install apache-airflow[crypto] --user
           # Postgres operators and hook, support as an Airflow backend
