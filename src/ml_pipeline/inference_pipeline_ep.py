@@ -10,7 +10,7 @@ from sagemaker.amazon.amazon_estimator import get_image_uri
 from airflow.models import Variable
 
 
-def inference_pipeline_ep(role, sess, spark_model_uri, region, bucket, **context):
+def inference_pipeline_ep(role, sess, spark_model_uri, region, bucket, pipeline_model_name, endpoint_name, **context):
     timestamp_prefix = Variable.get("timestamp")
     # sm = boto3.client('sagemaker', region_name=region)
     s3client = boto3.client('s3', region_name=region)
@@ -42,7 +42,7 @@ def inference_pipeline_ep(role, sess, spark_model_uri, region, bucket, **context
     xgb_model = Model(model_data=s3_xgboost_model_uri, role=role,
                       sagemaker_session=sagemaker.session.Session(sess), image=xgb_container)
 
-    pipeline_model_name = 'inference-pipeline-spark-xgboost-' + timestamp_prefix
+    pipeline_model_name = pipeline_model_name
 
     sm_model = PipelineModel(name=pipeline_model_name,
                              role=role,
@@ -50,7 +50,7 @@ def inference_pipeline_ep(role, sess, spark_model_uri, region, bucket, **context
                                  sess),
                              models=[sparkml_model, xgb_model])
 
-    endpoint_name = 'inference-pipeline-endpoint-' + timestamp_prefix
+    endpoint_name = endpoint_name
 
     sm_model.deploy(initial_instance_count=1,
                     instance_type='ml.c4.xlarge', endpoint_name=endpoint_name)

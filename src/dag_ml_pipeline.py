@@ -145,7 +145,7 @@ sm_proc_job_task = PythonOperator(
     dag=dag,
     provide_context=True,
     python_callable=sm_proc_job.sm_proc_job,
-    op_kwargs={'role': role, 'sess': sess, 'bucket': bucket, 'spark_repo_uri': config['spark_repo_uri']})
+    op_kwargs={'role': role, 'sess': sess, 'bucket': bucket, 'spark_repo_uri': config["processing_job"]['spark_repo_uri'], 'base_job_name': config["processing_job"]["base_job_name"]})
 
 # Train xgboost model task
 train_model_task = SageMakerTrainingOperator(
@@ -163,7 +163,8 @@ inference_pipeline_task = PythonOperator(
     dag=dag,
     python_callable=inference_pipeline_ep.inference_pipeline_ep,
     op_kwargs={'role': role, 'sess': sess,
-               'spark_model_uri': config['inference_pipeline']['inputs']['spark_model'],
+               'spark_model_uri': config['inference_pipeline']['inputs']['spark_model'], 'pipeline_model_name': config['inference_pipeline']['pipeline_model_name'],
+               'endpoint_name': config['inference_pipeline']['pipeline_model_name'],
                'region': region, 'bucket': bucket}
 )
 
