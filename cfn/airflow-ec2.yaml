@@ -77,8 +77,12 @@ Resources:
           #!/bin/bash
           set -x
           exec > >(tee /var/log/user-data.log|logger -t user-data ) 2>&1
+          # Install python3 and its dependencies
+          sudo yum install python36 python36-devel gcc gcc-c++ -y
           # Get latest version of pip (pip 10 breaks airflow installation hence moving to stable pip version)
-          python -m pip install pip==9.0.3 --user
+          curl -O https://bootstrap.pypa.io/get-pip.py
+          python3 get-pip.py
+          python3 -m pip install pip==9.0.3 --user
           # Get the latest CloudFormation package
           echo "Installing aws-cfn"
           yum install -y aws-cfn-bootstrap
@@ -89,36 +93,36 @@ Resources:
           sudo yum install -y git
           # Install boto3
           echo "Updating boto3"
-          python -m pip install boto3 --upgrade --user
+          python3 -m pip install boto3 --upgrade --user
           # Upgrade awscli
           echo "Updating awscli"
-          python -m pip install awscli --upgrade --user
-          python -m pip uninstall marshmallow-sqlalchemy
-          python -m pip install marshmallow-sqlalchemy==0.17.1
-          python -m pip install config
+          python3 -m pip install awscli --upgrade --user
+          python3 -m pip uninstall marshmallow-sqlalchemy
+          python3 -m pip install marshmallow-sqlalchemy==0.17.1
+          python3 -m pip install config
           # Install airflow using pip
           echo "Installing Apache Airflow"
           export AIRFLOW_GPL_UNIDECODE=yes
-          python -m pip install apache-airflow==1.10.10 --user
+          python3 -m pip install apache-airflow==1.10.10 --user
           # Encrypt connection passwords in metadata db
-          python -m pip install apache-airflow[crypto] --user
+          python3 -m pip install apache-airflow[crypto] --user
           # Postgres operators and hook, support as an Airflow backend
-          python -m pip install apache-airflow[postgres] --user
-          python -m pip install six==1.10.0 --user
-          python -m pip install --upgrade six --user
-          python -m pip install markupsafe --user
-          python -m pip install --upgrade MarkupSafe --user
+          python3 -m pip install apache-airflow[postgres] --user
+          python3 -m pip install six==1.10.0 --user
+          python3 -m pip install --upgrade six --user
+          python3 -m pip install markupsafe --user
+          python3 -m pip install --upgrade MarkupSafe --user
           echo 'export PATH=/usr/local/bin:~/.local/bin:$PATH' >> ~/.bash_profile
           source ~/.bash_profile
           # Install pandas and numpy for data processing
           echo "Installing numpy"
-          python -m pip install --upgrade numpy --user
+          python3 -m pip install --upgrade numpy --user
           echo "Installing pandas"
-          python -m pip install --upgrade pandas --user
+          python3 -m pip install --upgrade pandas --user
           echo "Installing s3fs"
-          python -m pip install --upgrade s3fs --user
+          python3 -m pip install --upgrade s3fs --user
           echo "Installing sagemaker sdk"
-          python -m pip install sagemaker==v1.39.2 --user
+          python3 -m pip install sagemaker==v1.39.2 --user
           # Initialize Airflow
           airflow initdb
           # Update the RDS connection in the Airflow Config file
@@ -141,7 +145,7 @@ Resources:
           session.add(conn)
           session.commit()
           EOF
-          python /tmp/airflow_conn.py
+          python3 /tmp/airflow_conn.py
           # create directories
           mkdir -p ~/airflow/dags/sm-ml-pipeline
           # clone the git repository
