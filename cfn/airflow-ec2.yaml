@@ -121,7 +121,7 @@ Resources:
           echo "Installing pandas"
           python3 -m pip install --upgrade pandas --user
           echo "Installing s3fs"
-          python3 -m pip install --upgrade s3fs --user
+          python3 -m pip install --upgrade s3fs==0.4.2 --user
           echo "Installing sagemaker sdk"
           python3 -m pip install sagemaker==v1.72 --user
           # Initialize Airflow
