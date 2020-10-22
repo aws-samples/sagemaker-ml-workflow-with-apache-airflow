@@ -116,19 +116,19 @@ def preprocess(s3_in_url,
         s3_out_train = "s3://{}/{}/{}".format(
             s3_out_bucket, s3_out_prefix, "train/train.csv")
         print("writing training data to {}".format(s3_out_train))
-        with fs.open(s3_out_train, "wb") as f:
+        with fs.open(s3_out_train, "w") as f:
             train_df.to_csv(f, sep=str(','), index=False)
 
         s3_out_validate = "s3://{}/{}/{}".format(
             s3_out_bucket, s3_out_prefix, "validate/validate.csv")
         print("writing test data to {}".format(s3_out_validate))
-        with fs.open(s3_out_validate, "wb") as f:
+        with fs.open(s3_out_validate, "w") as f:
             validate_df.to_csv(f, sep=str(','), index=False)
 
         s3_out_test = "s3://{}/{}/{}".format(
             s3_out_bucket, s3_out_prefix, "test/test.csv")
         print("writing test data to {}".format(s3_out_test))
-        with fs.open(s3_out_test, "wb") as f:
+        with fs.open(s3_out_test, "w") as f:
             test_df.to_csv(f, sep=str(','), index=False)
 
         print("preprocessing completed")
