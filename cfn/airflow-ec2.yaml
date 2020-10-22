@@ -132,6 +132,7 @@ Resources:
           # Update the type of executor in the Airflow Config file
           sed -i '/executor = SequentialExecutor/s/^/#/g' ~/airflow/airflow.cfg
           sed -i '/executor = SequentialExecutor/ a executor = LocalExecutor' ~/airflow/airflow.cfg
+          sed -i 's/load_examples = True/load_examples = False/g' ~/airflow/airflow.cfg
           airflow initdb
           # create airflow connection to sagemaker
           cat >> /tmp/airflow_conn.py << EOF
