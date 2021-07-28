@@ -54,8 +54,6 @@ We will set up a simple Airflow architecture with scheduler, worker and web serv
 - Amazon S3 bucket to store the Sagemaker model artifacts, outputs and Airflow DAG with ML workflow. Template will prompt for the S3 bucket name
 - AWS IAM roles and EC2 Security Groups to allow Airflow components interact with the metadata database, S3 bucket and Amazon SageMaker
 
-The prerequisite for running this CloudFormation script is to set up an Amazon EC2 Key Pair to log in to manage Airflow such as any troubleshooting or adding custom operators etc.
-
 [![cfn-launch-stack](./images/LaunchStack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=airflow-sagemaker&templateURL=./cfn/airflow-ec2.yaml)
 
 It may take up to 10 minutes for the CloudFormation stack to create the resources. After the resource creation is completed, you should be able to login to Airflow Web UI. The Airflow web server should be running on port 8080 by default. To open the Airflow Web UI, open any browser and type in the http://ec2-public-dns-name:8080. The public DNS Name of the EC2 instance can be found on the Outputs tab of CloudFormation stack on AWS console.
