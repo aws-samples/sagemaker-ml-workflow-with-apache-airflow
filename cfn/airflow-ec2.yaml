@@ -3,14 +3,6 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: Airflow server backed by Postgres RDS
 
 Parameters:
-  KeyName:
-    Description: Name of an existing EC2 KeyPair to enable SSH access into the Airflow web server
-    Type: AWS::EC2::KeyPair::KeyName
-    ConstraintDescription: Must be the name of an existing EC2 KeyPair
-  S3BucketName:
-    Description: REQUIRED - A new S3 Bucket name. This bucket will be used by Sagemaker for reading and writing model artifacts or hosting data
-    Type: String
-    AllowedPattern: ".+"
   DBPassword:
     NoEcho: "true"
     Description: Airflow database admin account password
@@ -60,7 +52,6 @@ Resources:
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      KeyName: !Ref "KeyName"
       SecurityGroups: [!Ref "AirflowEC2SecurityGroup"]
       InstanceType: "m4.xlarge"
       IamInstanceProfile:
@@ -78,7 +69,7 @@ Resources:
           set -x
           exec > >(tee /var/log/user-data.log|logger -t user-data ) 2>&1
           # Install python3 and its dependencies
-          sudo yum install python36 python36-devel gcc gcc-c++ -y
+          sudo yum install python36 python36-devel gcc gcc-c++ postgresql-devel openssl-devel -y
           # Get latest version of pip (pip 10 breaks airflow installation hence moving to stable pip version)
           curl -O https://bootstrap.pypa.io/get-pip.py
           python3 get-pip.py
@@ -101,12 +92,13 @@ Resources:
           python3 -m pip install marshmallow-sqlalchemy==0.17.1
           python3 -m pip install config
           python3 -m pip install urllib3==1.25.10
+          python3 -m pip install psycopg2
+          python3 -m pip install SQLAlchemy==1.3.23 
+          python3 -m pip install Flask-SQLAlchemy==2.4.4
           # Install airflow using pip
           echo "Installing Apache Airflow"
           export AIRFLOW_GPL_UNIDECODE=yes
           python3 -m pip install apache-airflow==1.10.10 --user
-          # Encrypt connection passwords in metadata db
-          python3 -m pip install apache-airflow[crypto] --user
           # Postgres operators and hook, support as an Airflow backend
           python3 -m pip install apache-airflow[postgres] --user
           python3 -m pip install six==1.10.0 --user
@@ -193,7 +185,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: AirflowEC2SG
-      GroupDescription: Enable HTTP access via port 80 + SSH access
+      GroupDescription: Enable HTTP access via port 80
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -202,10 +194,6 @@ Resources:
         - IpProtocol: tcp
           FromPort: 8080
           ToPort: 8080
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
           CidrIp: 0.0.0.0/0
   DBSecurityGroup:
     Type: AWS::RDS::DBSecurityGroup
@@ -230,6 +218,7 @@ Resources:
       Path: "/"
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
       Policies:
         - PolicyName: AirflowResourceAccess
           PolicyDocument:
@@ -251,12 +240,23 @@ Resources:
       InstanceProfileName: AirflowInstanceProfile
       Roles:
         - Ref: EC2Role
-  S3Bucket:
+  S3BucketName:
     Type: AWS::S3::Bucket
-    DeletionPolicy: Retain
+    DeletionPolicy: Delete
     Properties:
       AccessControl: BucketOwnerFullControl
-      BucketName: !Ref "S3BucketName"
+      BucketName: !Join
+        - "-"
+        - - "airflow-sagemaker"
+          - !Select
+            - 0
+            - !Split
+              - "-"
+              - !Select
+                - 2
+                - !Split
+                  - "/"
+                  - !Ref "AWS::StackId"
   AirflowSageMakerExecutionRole:
     Type: AWS::IAM::Role
     Properties:
