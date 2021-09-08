@@ -10,7 +10,7 @@ This repository shows a sample example to build, manage and orchestrate ML workf
 
 The repository contains
 
-- [AWS CloudFormation Template](./cfn/airflow-ec2.yaml) to launch the AWS services required to create the components
+- [AWS CloudFormation Templates](./cfn/) to launch the AWS services required to create the components
 - [Airflow DAG Python Script](./src/dag_ml_pipeline_amazon_video_reviews.py) that integrates and orchestrates all the ML tasks in a ML workflow for building a recommender system.
 - A companion [Jupyter Notebook](./notebooks/amazon-video-recommender_using_fm_algo.ipynb) to understand the individual ML tasks in detail such as data exploration, data preparation, model training/tuning and inference.
 
@@ -50,13 +50,21 @@ The workflow performs the following tasks
 We will set up a simple Airflow architecture with scheduler, worker and web server running on the same instance. Typically, you will not use this setup for production workloads. We will use AWS CloudFormation to launch the AWS services required to create the components in the blog post. The stack includes the following
 
 - Amazon EC2 instance to set up the Airflow components
-- Amazon RDS (Relational Database Service) Postgres instance to host Airflow metadata database
+- Amazon Relational Database Service (RDS) Postgres or Aurora Serverless instance to host the Airflow metadata database.
 - Amazon S3 bucket to store the Sagemaker model artifacts, outputs and Airflow DAG with ML workflow. Template will prompt for the S3 bucket name
 - AWS IAM roles and EC2 Security Groups to allow Airflow components interact with the metadata database, S3 bucket and Amazon SageMaker
 
-[![cfn-launch-stack](./images/LaunchStack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=airflow-sagemaker&templateURL=./cfn/airflow-ec2.yaml)
+If you want to troubleshoot or add custom operators, you can connect directly to the instance through the Session Manager console. You can also launch different stable versions of Airflow (1.10.12 and 2.0.2).
+Airflow 1.10.12 RDS:
+[![cfn-launch-stack](./images/LaunchStack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=airflow-sagemaker&templateURL=./cfn/airflow-ec2-1.10.12-RDS.yaml)
+Airflow 1.10.12 Aurora Serverless:  
+[![cfn-launch-stack](./images/LaunchStack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=airflow-sagemaker&templateURL=./cfn/airflow-ec2-1.10.12-Aurora-Serverless.yaml)
+Airflow 2.0.2 RDS:  
+[![cfn-launch-stack](./images/LaunchStack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=airflow-sagemaker&templateURL=./cfn/airflow-ec2-2.0.2-RDS.yaml)
+Airflow 2.0.2 Aurora Serverless: 
+[![cfn-launch-stack](./images/LaunchStack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=airflow-sagemaker&templateURL=./cfn/airflow-ec2-2.0.2-Aurora-Serverless.yaml)
 
-It may take up to 10 minutes for the CloudFormation stack to create the resources. After the resource creation is completed, you should be able to login to Airflow Web UI. The Airflow web server should be running on port 8080 by default. To open the Airflow Web UI, open any browser and type in the http://ec2-public-dns-name:8080. The public DNS Name of the EC2 instance can be found on the Outputs tab of CloudFormation stack on AWS console.
+It might take up to 10 minutes for the CloudFormation stack to create the resources. After the resource creation is completed, you should be able to log in to Airflow web UI with the credentials specified in the parameters of the CloudFormation stack. The Airflow web server runs on port 8080 by default. To open the Airflow web UI, open any browser, and type in the http://ec2-public-dns-name:8080. The public DNS name of the EC2 instance can be found on the Outputs tab of CloudFormation stack on the AWS CloudFormation console.
 
 ### Airflow DAG for ML Workflow
 
